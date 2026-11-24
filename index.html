@@ -1,0 +1,423 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>教材研究ルーレット</title>
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;background:#f3f5f9;color:#202938;
+  font-family:system-ui,"Noto Sans JP",sans-serif
+}
+header{background:#243b64;color:white;padding:22px}
+header h1{margin:0;font-size:23px}
+header p{margin:6px 0 0;color:#dce5f5;font-size:13px}
+main{max-width:950px;margin:auto;padding:20px}
+.card{
+  background:white;border-radius:15px;padding:20px;
+  margin-bottom:16px;box-shadow:0 3px 12px #182b4810
+}
+h2{font-size:18px;margin:0 0 15px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.stat{background:#f2f5fa;border-radius:10px;padding:13px}
+.stat strong{display:block;font-size:25px}
+.stat span{font-size:12px;color:#68758a}
+button{
+  border:0;border-radius:9px;padding:12px 16px;
+  font-size:14px;font-weight:650;cursor:pointer
+}
+button:disabled{opacity:.4;cursor:not-allowed}
+.primary{background:#315caa;color:white}
+.success{background:#16865d;color:white}
+.warning{background:#fff0d3;color:#895500}
+.danger{background:#fff0f0;color:#b52e35}
+.secondary{background:#e9eef6;color:#34445e}
+.actions{display:flex;gap:9px;flex-wrap:wrap}
+.result{
+  background:#edf4ff;border:1px solid #d6e5ff;
+  padding:20px;border-radius:12px;margin:14px 0
+}
+.result .number{font-size:23px;font-weight:800;color:#2463b4}
+.result .unit{font-size:23px;font-weight:750;margin-top:8px}
+.muted{color:#778397;font-size:13px}
+.badge{display:inline-block;border-radius:20px;padding:4px 9px;font-size:12px;background:#eee}
+.badge.制作中{background:#fff0d3;color:#895500}
+.badge.完了{background:#dff5e9;color:#14734b}
+.badge.保留{background:#e4efff;color:#285a9d}
+.badge.未着手{background:#eee;color:#555}
+input,select{
+  padding:10px;border:1px solid #ccd4e1;border-radius:8px;
+  font-size:14px;background:white;max-width:100%
+}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:10px;border-bottom:1px solid #e9edf3}
+th{color:#647187;background:#f7f8fa}
+.table-wrap{overflow-x:auto}
+.hidden{display:none}
+#message{font-size:13px;color:#52637b;margin-top:10px}
+footer{text-align:center;color:#8993a3;font-size:12px;padding:20px}
+@media(max-width:600px){
+ main{padding:12px}
+ .stats{grid-template-columns:repeat(2,1fr)}
+ .card{padding:15px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>教材研究ルーレット</h1>
+  <p>小学校1年生〜中学校3年生｜教材研究・進捗管理</p>
+</header>
+
+<main>
+
+<section class="card">
+  <h2>教材研究の進捗</h2>
+  <div class="stats">
+    <div class="stat"><strong id="countTodo">0</strong><span>未着手</span></div>
+    <div class="stat"><strong id="countWorking">0</strong><span>制作中</span></div>
+    <div class="stat"><strong id="countHold">0</strong><span>保留</span></div>
+    <div class="stat"><strong id="countDone">0</strong><span>完了</span></div>
+  </div>
+</section>
+
+<section class="card">
+  <h2>ルーレット</h2>
+  <p class="muted">
+    学年・教科・小単元を3段階で自動抽選します。
+    未着手または保留の教材が抽選対象です。
+  </p>
+
+  <div id="drawArea">
+    <div class="result">
+      <div class="muted">抽選待ち</div>
+      <div class="unit">次の教材を決めよう</div>
+      <p id="availableCount" class="muted"></p>
+    </div>
+    <button class="primary" id="drawButton" onclick="draw()">ルーレットを回す</button>
+  </div>
+
+  <div id="currentArea" class="hidden">
+    <div class="result">
+      <span class="badge 制作中">制作中</span>
+      <p class="muted">教材番号</p>
+      <div class="number" id="currentId"></div>
+      <hr style="border:0;border-top:1px solid #d6e5ff;margin:15px 0">
+      <div class="muted">学年</div>
+      <strong id="currentGrade"></strong>
+      <div class="muted" style="margin-top:10px">教科</div>
+      <strong id="currentSubject"></strong>
+      <div class="muted" style="margin-top:10px">小単元</div>
+      <div class="unit" id="currentUnit"></div>
+    </div>
+
+    <p>次の抽選に進む前に、今回の教材の状態を決めてください。</p>
+    <div class="actions">
+      <button class="success" onclick="settle('完了')">✓ 完了にして次へ</button>
+      <button class="warning" onclick="settle('保留')">Ⅱ 保留にして次へ</button>
+    </div>
+  </div>
+
+  <div id="message"></div>
+</section>
+
+<section class="card">
+  <h2>教材一覧・進捗管理</h2>
+  <div class="actions" style="margin-bottom:12px">
+    <input id="search" placeholder="教材名・教材番号で検索" oninput="renderTable()">
+    <select id="statusFilter" onchange="renderTable()">
+      <option value="">すべての状態</option>
+      <option>未着手</option>
+      <option>制作中</option>
+      <option>保留</option>
+      <option>完了</option>
+    </select>
+    <select id="gradeFilter" onchange="renderTable()">
+      <option value="">すべての学年</option>
+    </select>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>教材番号</th><th>学年</th><th>教科</th>
+          <th>小単元</th><th>状態</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+</section>
+
+<section class="card">
+  <h2>JSONデータ管理</h2>
+  <p class="muted">
+    教材データ、進捗、抽選履歴、現在の教材をまとめて保存・復元できます。
+  </p>
+  <div class="actions">
+    <button class="primary" onclick="exportJSON()">JSONを書き出す</button>
+    <button class="secondary" onclick="document.getElementById('importFile').click()">JSONを読み込む</button>
+    <input id="importFile" type="file" accept=".json,application/json"
+      class="hidden" onchange="importJSON(event)">
+  </div>
+</section>
+
+<section class="card">
+  <h2>全データのリセット</h2>
+  <p class="muted">
+    教材の進捗と抽選履歴をすべて初期状態に戻します。
+    教材一覧そのものは残ります。
+  </p>
+  <button class="danger" onclick="resetAll()">すべてリセット</button>
+</section>
+
+<footer>教材研究ルーレット｜データはこのブラウザ内に保存されます。</footer>
+</main>
+
+<script>
+let db = null;
+const STORAGE_KEY = "teacherStudyRoulette_v1";
+
+async function init(){
+  try{
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if(saved){
+      db = JSON.parse(saved);
+    }else{
+      const response = await fetch("./data.json");
+      if(!response.ok) throw new Error("data.jsonを読み込めません");
+      db = await response.json();
+      initializeProgress();
+      save();
+    }
+    validateDB();
+    render();
+  }catch(error){
+    document.body.innerHTML =
+      "<main><section class='card'><h2>データ読み込みエラー</h2>" +
+      "<p>index.htmlとdata.jsonを同じフォルダに置き、" +
+      "ローカルサーバー経由で開いてください。</p><p>" +
+      error.message + "</p></section></main>";
+  }
+}
+
+function initializeProgress(){
+  db.progress = db.progress || {};
+  db.units.forEach(unit=>{
+    if(!db.progress[unit.id]){
+      db.progress[unit.id] = {status:"未着手"};
+    }
+  });
+  db.history = db.history || [];
+  db.current = db.current || null;
+}
+
+function validateDB(){
+  if(!db || !Array.isArray(db.units) ||
+     !Array.isArray(db.subjects) ||
+     !Array.isArray(db.grades)){
+    throw new Error("JSONのデータ構造が正しくありません");
+  }
+  initializeProgress();
+}
+
+function save(){
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(db));
+}
+
+function subjectName(code){
+  return db.subjects.find(s=>s.code===code)?.name || code;
+}
+
+function getStatus(id){
+  return db.progress[id]?.status || "未着手";
+}
+
+function render(){
+  renderStats();
+  renderCurrent();
+  renderTable();
+  renderGradeFilter();
+  document.getElementById("availableCount").textContent =
+    "現在の抽選対象：" + eligibleUnits().length + "件";
+}
+
+function renderStats(){
+  const counts = {"未着手":0,"制作中":0,"保留":0,"完了":0};
+  db.units.forEach(u=>counts[getStatus(u.id)]++);
+  document.getElementById("countTodo").textContent=counts["未着手"];
+  document.getElementById("countWorking").textContent=counts["制作中"];
+  document.getElementById("countHold").textContent=counts["保留"];
+  document.getElementById("countDone").textContent=counts["完了"];
+}
+
+function eligibleUnits(){
+  return db.units.filter(u=>
+    ["未着手","保留"].includes(getStatus(u.id))
+  );
+}
+
+function renderCurrent(){
+  const unit = db.units.find(u=>u.id===db.current);
+  const hasCurrent = !!unit;
+  document.getElementById("drawArea").classList.toggle("hidden",hasCurrent);
+  document.getElementById("currentArea").classList.toggle("hidden",!hasCurrent);
+  if(!unit)return;
+  document.getElementById("currentId").textContent=unit.id;
+  document.getElementById("currentGrade").textContent=unit.grade;
+  document.getElementById("currentSubject").textContent=subjectName(unit.subject);
+  document.getElementById("currentUnit").textContent=unit.unit;
+}
+
+function draw(){
+  if(db.current){
+    alert("現在の教材を先に完了または保留にしてください。");
+    return;
+  }
+  const pool=eligibleUnits();
+  if(!pool.length){
+    alert("抽選対象がありません。");
+    return;
+  }
+
+  // 学年→教科→小単元の3段階で抽選
+  const grades=[...new Set(pool.map(u=>u.grade))];
+  const grade=grades[Math.floor(Math.random()*grades.length)];
+
+  const gradeUnits=pool.filter(u=>u.grade===grade);
+  const subjects=[...new Set(gradeUnits.map(u=>u.subject))];
+  const subject=subjects[Math.floor(Math.random()*subjects.length)];
+
+  const subjectUnits=gradeUnits.filter(u=>u.subject===subject);
+  const selected=subjectUnits[Math.floor(Math.random()*subjectUnits.length)];
+
+  db.current=selected.id;
+  db.progress[selected.id]={status:"制作中"};
+  db.history.push({
+    id:selected.id,
+    date:new Date().toISOString(),
+    action:"抽選"
+  });
+  save();
+  document.getElementById("message").textContent=
+    "学年・教科・小単元の抽選が完了しました。";
+  render();
+}
+
+function settle(status){
+  if(!db.current)return;
+  const id=db.current;
+  db.progress[id]={status:status};
+  db.history.push({
+    id:id,
+    date:new Date().toISOString(),
+    action:status
+  });
+  db.current=null;
+  save();
+  render();
+  document.getElementById("message").textContent=
+    status+"として記録しました。次の抽選ができます。";
+}
+
+function renderGradeFilter(){
+  const select=document.getElementById("gradeFilter");
+  const previous=select.value;
+  select.innerHTML='<option value="">すべての学年</option>';
+  db.grades.forEach(g=>{
+    const option=document.createElement("option");
+    option.value=g;
+    option.textContent=g;
+    select.appendChild(option);
+  });
+  select.value=previous;
+}
+
+function renderTable(){
+  if(!db)return;
+  const query=(document.getElementById("search")?.value||"").toLowerCase();
+  const status=document.getElementById("statusFilter")?.value||"";
+  const grade=document.getElementById("gradeFilter")?.value||"";
+  const body=document.getElementById("tableBody");
+  body.innerHTML="";
+
+  db.units.filter(u=>{
+    const text=(u.id+" "+u.unit+" "+u.grade+" "+subjectName(u.subject)).toLowerCase();
+    return text.includes(query) &&
+      (!status||getStatus(u.id)===status) &&
+      (!grade||u.grade===grade);
+  }).forEach(u=>{
+    const tr=document.createElement("tr");
+    const values=[u.id,u.grade,subjectName(u.subject),u.unit];
+    values.forEach(value=>{
+      const td=document.createElement("td");
+      td.textContent=value;
+      tr.appendChild(td);
+    });
+    const statusCell=document.createElement("td");
+    const badge=document.createElement("span");
+    badge.className="badge "+getStatus(u.id);
+    badge.textContent=getStatus(u.id);
+    statusCell.appendChild(badge);
+    tr.appendChild(statusCell);
+    body.appendChild(tr);
+  });
+}
+
+function exportJSON(){
+  const blob=new Blob([JSON.stringify(db,null,2)],{
+    type:"application/json"
+  });
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download="教材研究データ.json";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importJSON(event){
+  const file=event.target.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const imported=JSON.parse(reader.result);
+      if(!Array.isArray(imported.units)||
+         !Array.isArray(imported.subjects)||
+         !Array.isArray(imported.grades)){
+        throw new Error("必要なデータがありません");
+      }
+      if(!confirm("現在のデータを読み込んだJSONで置き換えますか？"))return;
+      db=imported;
+      validateDB();
+      save();
+      render();
+      alert("JSONを読み込みました。");
+    }catch(error){
+      alert("JSONを読み込めませんでした："+error.message);
+    }
+  };
+  reader.readAsText(file);
+  event.target.value="";
+}
+
+function resetAll(){
+  if(!confirm("全教材の進捗・抽選履歴を初期化します。よろしいですか？"))return;
+  db.progress={};
+  db.history=[];
+  db.current=null;
+  initializeProgress();
+  save();
+  render();
+  document.getElementById("message").textContent=
+    "全データを初期化しました。";
+}
+
+init();
+</script>
+</body>
+</html>
